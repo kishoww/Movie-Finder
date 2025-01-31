@@ -3,6 +3,7 @@ import Search from './Components/Search.jsx'
 import Spinner from './Components/Spinner.jsx';
 import MovieCard from './Components/MovieCard.jsx';
 import { useDebounce } from 'react-use';
+import { getTrendingMovies, updateSearchCount } from './appwrite.js';
 
 
 const API_BASE_URL = 'https://api.themoviedb.org/3';
@@ -26,6 +27,21 @@ const App = () => {
   const [movieList, setMovieList] = useState([]);
   const [isLoading, setisLoading] = useState(false);
   const [debounceTerm, setDebounceTerm] = useState("");
+  const [trendingMovies, setTrendingMovies] = useState([])
+
+
+  const loadTrendingMovies = async () => {
+    setisLoading(true);
+    try {
+      const movies = await getTrendingMovies();
+      setTrendingMovies(movies);
+    } catch (error) {
+      console.log(error);
+    } finally {
+      setisLoading(false);
+    }
+  }
+
 
   const fetchMovies = async (query = '') => {
 
@@ -51,7 +67,10 @@ const App = () => {
         return;
       }
       setMovieList(data.results || []);
-      console.log(movieList);
+
+      if (query && data.results.length > 0)
+        await updateSearchCount(query, data.results[0]);
+
     } catch (error) {
       console.log(`Error fetching movies: ${error}`);
       setErrorMessage("Error fetching movies. Please try again later!");
@@ -63,9 +82,14 @@ const App = () => {
 
 
   useDebounce(() => setDebounceTerm(SearchTerm), 1000, [SearchTerm]);
+
   useEffect(() => {
     fetchMovies(debounceTerm);
   }, [debounceTerm]);
+
+  useEffect(() => {
+    loadTrendingMovies();
+  }, [])
 
   return (
     <main>
@@ -83,9 +107,35 @@ const App = () => {
 
         </header>
 
+        {trendingMovies.length > 0 && (
+          <section className='trending'>
+            <h2>Trending movies</h2>
+
+            <ul>
+              {isLoading ? (
+                <>
+                  <div className='flex items-center justify-center w-full'>
+                  <Spinner />
+                </div>
+                </>
+              ) : (
+                trendingMovies.map((movie, index) =>
+                (
+                  <li key={movie.$id}>
+                    <p>{index + 1}</p>
+                    <img src={movie.poster} alt={movie.title} />
+                  </li>
+                ))
+              )}
+            </ul>
+          </section>
+        )}
+
+
+
         <section className="all-movies">
 
-          <h2 className='mt-[40px]'>All Movies</h2>
+          <h2 className=''>All Movies</h2>
 
           {isLoading ? (
             <>
